@@ -69,6 +69,10 @@ module fpga_top (
     reg        alg_btn_prev = 0;
     reg        alg_sel = 0;           // 0 = age, 1 = round-robin
 
+    // Handoff signals: FSM requests an algorithm change via pulse
+    reg        uart_alg_set = 0;     // single-cycle pulse from FSM
+    reg        uart_alg_val = 0;     // desired value
+
     always @(posedge clk_100mhz) begin
         alg_sync1 <= btnU;
         alg_sync2 <= alg_sync1;
@@ -88,8 +92,10 @@ module fpga_top (
             alg_btn_prev <= 1'b0;
         end else begin
             alg_btn_prev <= alg_btn_stable;
-            // Rising edge detection: was low, now high
-            if (alg_btn_stable && !alg_btn_prev)
+            // UART set takes priority over button toggle
+            if (uart_alg_set)
+                alg_sel <= uart_alg_val;
+            else if (alg_btn_stable && !alg_btn_prev)
                 alg_sel <= ~alg_sel;
         end
     end
@@ -376,10 +382,13 @@ module fpga_top (
             staged_valid     <= {NUM_SRCS{1'b0}};
             staged_dest_flat <= {(NUM_SRCS*DST_WIDTH){1'b0}};
             staged_data_flat <= {(NUM_SRCS*DATA_WIDTH){1'b0}};
+            uart_alg_set     <= 1'b0;
+            uart_alg_val     <= 1'b0;
         end else begin
             do_step  <= 1'b0;
             rst_cmd  <= 1'b0;
             tx_start <= 1'b0;
+            uart_alg_set <= 1'b0;
 
             case (cmd_state)
 
@@ -465,8 +474,9 @@ module fpga_top (
                 // =========================================== SET ALGORITHM byte
                 S_ALG_BYTE: begin
                     if (rx_valid) begin
-                        alg_sel   <= rx_data[0];
-                        cmd_state <= S_FILL_RESP;
+                        uart_alg_set <= 1'b1;
+                        uart_alg_val <= rx_data[0];
+                        cmd_state    <= S_FILL_RESP;
                     end
                 end
 
