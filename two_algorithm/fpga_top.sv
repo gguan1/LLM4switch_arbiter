@@ -310,18 +310,10 @@ module fpga_top (
 
     // ================================================================
     // LED status display
-    //   [3:0]  num_active_reqs
-    //   [4]    table_full
-    //   [5]    age_overflow
-    //   [6]    alg_sel (0=age, 1=rr)
-    //   [7]    0
-    //   [15:8] granted_valid
+    //   [7:0]  req_table_valid (one LED per slot -- lit = occupied)
+    //   [15:8] granted_valid   (one LED per slot -- lit = just granted)
     // ================================================================
-    assign led[3:0]  = num_active_reqs;
-    assign led[4]    = table_full;
-    assign led[5]    = age_overflow;
-    assign led[6]    = alg_sel;
-    assign led[7]    = 1'b0;
+    assign led[7:0]  = req_table_valid;
     assign led[15:8] = granted_valid;
 
     // ================================================================
